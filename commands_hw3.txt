@@ -1,0 +1,285 @@
+Random Forest ntree=500:
+
+rf <- randomForest(phishing~., data=traindata, ntree=500)
+print(rf)
+mtry <- tuneRF(traindata[, -79], traindata$phishing, ntreeTry = 500, stepFactor = 1.5, improve = 0.01, trace = TRUE, plot = TRUE)
+best.m <- mtry[mtry[, 2] == min(mtry[, 2]), 1]
+print(mtry)
+
+rf <- randomForest(phishing~., data=traindata, mtry = best.m, ntree=500)
+print(rf)
+
+importance(rf)
+
+rf_pred = predict(rf, traindata[, -79])
+rf_mtab <- table(traindata$phishing, rf_pred)
+rf_cmx <- caret::confusionMatrix(rf_mtab)
+
+rf_cmx
+rf_cmx$overall
+
+pred1 = predict(rf, type = “prob”)
+perf = prediction(pred1[, 2], traindata$phishing)
+pred3 = performance(perf, “tpr”, “fpr”)
+plot(pred3, main=“ROC Curve for Random Forest”, col=2, lwd=2)
+abline(a=0, b=1, lwd=2, lty=2, col=“gray”)
+
+
+rf_pred = predict(rf, testdata[, -79])
+rf_mtab <- table(testdata$phishing, rf_pred)
+rf_cmx_test <- caret::confusionMatrix(rf_mtab)
+
+rf_cmx_test
+rf_cmx_test$overall
+
+
+pred1 = predict(rf, new data = testdata[, -79], type = “prob”)
+Perf_test = prediction(pred1[, 2], testdata$phishing)
+auc_test = performance(perf_test, “auc”)
+pred3_test = performance(perf_test, “tpr”, “fpr”)
+plot(pred3_test, main=“ROC Curve for Random Forest-Test”, col=2, lwd=2)
+abline(a=0, b=1, lwd=2, lty=2, col=“gray”)
+
+
+rf_uncor <- randomForest(phishing~., data=traindata_uncor, ntree=500)
+print(rf_uncor)
+mtry_uncor <- tuneRF(traindata_uncor[, -37], traindata_uncor$phishing, ntreeTry = 500, stepFactor = 1.5, improve = 0.01, trace = TRUE, plot = TRUE)
+best.m <- mtry_uncor[mtry_uncor[, 2] == min(mtry_uncor[, 2]), 1]
+print(mtry)
+print(best.m)
+
+rf_uncor <- randomForest(phishing~., data=traindata_uncor, mtry = best.m, ntree=500)
+rf_pred_uncor = predict(rf_uncor, traindata_uncor[,-37])
+rf_mtab_uncor <- table(traindata_uncor$phishing, rf_pred_uncor)
+rf_cmx_uncor <- caret::confusionMatrix(rf_mtab_uncor)
+
+rf_cmx_uncor
+rf_cmx_uncor$overall
+
+rf_pred_uncor_test = predict(rf_uncor, testdata_uncor[,-37])
+rf_mtab_uncor_test <- table(testdata_uncor$phishing, rf_pred_uncor_test)
+rf_cmx_uncor_test <- caret::confusionMatrix(rf_mtab_uncor_test)
+
+rf_cmx_uncor_test
+rf_cmx_uncor_test$overall
+
+Random Forest ntree=100:
+
+rf <- randomForest(phishing~., data=traindata, ntree=100)print(rf)
+mtry <- tuneRF(traindata[, -79], traindata$phishing, ntreeTry = 100, stepFactor = 1.5, improve = 0.01, trace = TRUE, plot = TRUE)
+best.m <- mtry[mtry[, 2] == min(mtry[, 2]), 1]print(mtry)
+rf <- randomForest(phishing~., data=traindata, mtry = best.m, ntree=100)importance(rf)
+rf_pred = predict(rf, traindata[, -79])rf_mtab <- table(traindata$phishing, rf_pred)rf_cmx <- caret::confusionMatrix(rf_mtab)rf_cmx
+rf_cmx$overall
+rf_pred = predict(rf, testdata[, -79])rf_mtab <- table(testdata$phishing, rf_pred)rf_cmx_test <- caret::confusionMatrix(rf_mtab)rf_cmx_test
+rf_cmx_test$overall
+
+rf_uncor <- randomForest(phishing~., data=traindata_uncor, ntree=100)mtry_uncor <- tuneRF(traindata_uncor[, -37], traindata_uncor$phishing, ntreeTry = 100, stepFactor = 1.5, improve = 0.01, trace = TRUE, plot = TRUE)
+best.m <- mtry_uncor[mtry_uncor[, 2] == min(mtry_uncor[, 2]), 1]print(mtry)
+rf_uncor <- randomForest(phishing~., data=traindata_uncor, mtry = best.m, ntree=100)rf_pred_uncor = predict(rf_uncor, traindata_uncor[,-37])rf_mtab_uncor <- table(traindata_uncor$phishing, rf_pred_uncor)rf_cmx_uncor <- caret::confusionMatrix(rf_mtab_uncor)rf_cmx_uncor
+rf_cmx_uncor$overall
+rf_pred_uncor_test = predict(rf_uncor, testdata_uncor[,-37])rf_mtab_uncor_test <- table(testdata_uncor$phishing, rf_pred_uncor_test)rf_cmx_uncor_test <- caret::confusionMatrix(rf_mtab_uncor_test)rf_cmx_uncor_test
+rf_cmx_uncor_test$overall
+
+
+
+Stacking:
+
+library(parallel)
+library(doParallel)
+cluster <- makeCluster(detectCores() - 1)
+registerDoParallel(cluster)
+fitControl <- trainControl(method = "cv",number = 5, allowParallel = TRUE)
+inTrain = createDataPartition(ncpdata.new$phishing, p = 3 / 4)[[1]]
+training = ncpdata.new[inTrain,]
+testing = ncpdata.new[-inTrain,]
+system.time(modelFitLR <- train(phishing ~ ., method="glm",data=training, trControl = fitControl))
+system.time(modelFitKNN <- train(phishing ~ ., method="knn",data=training, trControl = fitControl))
+system.time(modelFitRpart <- train(phishing ~ ., method="rpart",data=training, trControl = fitControl))
+predLRtrain <- predict(modelFitLR,newdata=training)
+predKNNtrain <- predict(modelFitKNN,newdata=training)
+predRparttrain <- predict(modelFitRpart,newdata=training)
+predDF <- data.frame(predLRtrain, predKNNtrain, predRparttrain, diagnosis = training$phishing, stringsAsFactors = F)
+
+modelStack <- train(phishing ~ ., data = predDF, method = "rpart")
+modelStack
+require(tidyverse)
+names(predDF)[names(predDF) == "predLRtrain"] <- "predLR"
+names(predDF)[names(predDF) == "predKNNtrain"] <- "predKNN"
+names(predDF)[names(predDF) == "predRparttrain"] <- "predRpart"
+
+predLR <- predict(modelFitLR,newdata=testing)
+predKNN <- predict(modelFitKNN, newdata = testing)
+predRpart <- predict(modelFitRpart, newdata = testing)
+testPredLevelOne <- data.frame(predLR, predKNN, predRpart, phishing = testing$phishing, stringsAsFactors = F)
+
+confusionMatrix(predLR, testing$phishing)$overall[1]
+confusionMatrix(predKNN, testing$phishing)$overall[1]
+confusionMatrix(predRpart, testing$phishing)$overall[1]
+combPred <- predict(modelStack, testPredLevelOne)
+confusionMatrix(combPred, testing$phishing)$overall[1]
+
+inTrain_uncor = createDataPartition(ncpdata_uncor$phishing, p = 3 / 4)[[1]]
+training_uncor = ncpdata_uncor[inTrain_uncor, ]
+testing_uncor = ncpdata_uncor[-inTrain_uncor, ]
+
+system.time(modelFitLR_uncor <- train(phishing ~ ., method="glm",data=training_uncor, trControl = fitControl))
+system.time(modelFitKNN_uncor <- train(phishing ~ ., method="knn",data=training_uncor, trControl = fitControl))
+system.time(modelFitRpart_uncor <- train(phishing ~ ., method="rpart",data=training_uncor, trControl = fitControl))
+
+predLR_uncor <- predict(modelFitLR_uncor, newdata = training_uncor)
+predKNN_uncor <- predict(modelFitKNN_uncor, newdata = training_uncor)
+predRpart_uncor <- predict(modelFitRpart_uncor, newdata = training_uncor)
+
+predDF_uncor <- data.frame(predLR_uncor, predKNN_uncor, predRpart_uncor, phishing=training_uncor$phishing, stringsAsFactors = F)
+
+modelStack_uncor <- train(phishing ~ ., data=predDF_uncor, method="rpart")
+
+predLR_uncor <- predict(modelFitLR_uncor, newdata = testing_uncor)
+predKNN_uncor <- predict(modelFitKNN_uncor, newdata = testing_uncor)
+predRpart_uncor <- predict(modelFitRpart_uncor, newdata = testing_uncor)
+
+testPredLevelOne_uncor <- data.frame(predLR_uncor, predKNN_uncor, predRpart_uncor, phishing=testing_uncor$phishing, stringsAsFactors = F)
+
+confusionMatrix(predLR_uncor, testing_uncor$phishing)$overall[[1]]
+confusionMatrix(predKNN_uncor, testing_uncor$phishing)$overall[[1]]
+confusionMatrix(predRpart_uncor, testing_uncor$phishing)$overall[[1]]
+
+combPred_uncor <- predict(modelStack_uncor, testPredLevelOne_uncor)
+confusionMatrix(combPred_uncor, testing_uncor$phishing)$overall[[1]]
+
+
+
+Bagging:
+
+require(parallel)require(caret)require(doParallel)cl<-makePSOCKcluster(5)registerDoParallel(cl)start.time<-proc.time()
+
+fitControl <- trainControl(method = "cv",number = 5, allowParallel = TRUE)train.bagg <- train(as.factor(phishing) ~ ., data=traindata, method="treebag", trControl=fitControl, importance=TRUE)train.baggbagg.classTrain <-  predict(train.bagg, type="raw")confusionMatrix(traindata$phishing,bagg.classTrain)
+
+bagg.classTest <-  predict(train.bagg, newdata = testdata, type="raw")confusionMatrix(testdata$phishing,bagg.classTest)
+
+train.bagg_uncor <- train(as.factor(phishing) ~ ., data=traindata_uncor,method="treebag",trControl=fitControl,importance=TRUE)train.bagg_uncor
+bagg.classTrain_uncor <-  predict(train.bagg_uncor, type="raw")confusionMatrix(traindata_uncor$phishing,bagg.classTrain_uncor)
+bagg.classTest_uncor <-  predict(train.bagg_uncor, newdata = testdata_uncor,type="raw")confusionMatrix(testdata_uncor$phishing,bagg.classTest_uncor)
+
+
+
+Variance Estimation:
+
+fpr <- NULL
+fnr <- NULL
+pbar <- create_progress_bar('text')
+k <- 10
+pbar$init(k)
+acc <- NULL
+set.seed(43)
+
+
+for(i in 1:k){
+smp_size <- floor(0.90 * nrow(ncpdata.new))
+index <- sample(seq_len(nrow(ncpdata.new)),size=smp_size)
+train_cv <- ncpdata.new[index, ]
+test_cv <- ncpdata.new[-index, ]
+model <- glm(phishing~.,family=binomial,data=train_cv)
+results_prob <- predict(model,test_cv,family=binomial)
+results <- as.factor(ifelse(results_prob < 0.5,1,0))
+answers <- as.factor(test_cv$phishing)
+misClasificError <- mean(answers != results)
+cm <- confusionMatrix(answers, results)
+acc[i] <- cm$overall[[1]]
+fpr[i] <- cm$table[2]/(nrow(ncpdata.new)-smp_size)
+fnr[i] <- cm$table[3]/(nrow(ncpdata.new)-smp_size)
+pbar$step()
+}
+
+
+fpr_uncor <- NULL
+fnr_uncor <- NULL
+pbar <- create_progress_bar('text')
+k <- 10
+pbar$init(k)
+acc_uncor <- NULL
+set.seed(43)
+
+for(i in 1:k){
+smp_size <- floor(0.90 * nrow(ncpdata_uncor))
+index <- sample(seq_len(nrow(ncpdata_uncor)),size=smp_size)
+train_cv_uncor <- ncpdata_uncor[index, ]
+test_cv_uncor <- ncpdata_uncor[-index, ]
+model <- glm(phishing~.,family=binomial,data=train_cv_uncor)
+results_prob <- predict(model,test_cv_uncor,family=binomial)
+results <- as.factor(ifelse(results_prob < 0.5,0,1))
+answers <- as.factor(test_cv_uncor$phishing)
+cm_uncor <- confusionMatrix(answers, results)
+acc_uncor[I] <- cm_uncor$overall[[1]]
+fpr_uncor[I] <- cm_uncor$table[2]/(nrow(ncpdata_uncor)-smp_size)
+fnr_uncor[I] <- cm_uncor$table[3]/(nrow(ncpdata_uncor)-smp_size)
+pbar$step()
+}
+
+par(mfcol=c(1,1))
+hist(acc,xlab='Accuracy',ylab='Freq',
+col='cyan',border='blue',density=30)
+par(mfcol=c(1,1))
+hist(acc_uncor,xlab='Accuracy',ylab='Freq',
+col='cyan',border='blue',density=30)
+
+
+fpr_dt <- NULL
+fnr_dt <- NULL
+pbar <- create_progress_bar('text')
+k <- 10
+pbar$init(k)
+acc_dt <- NULL
+set.seed(43)
+penalty.matrix <- matrix(c(0,1,10,0), byrow=TRUE, nrow=2)
+
+for(i in 1:k){
+smp_size <- floor(0.90 * nrow(ncpdata.new))
+index <- sample(seq_len(nrow(ncpdata.new)),size=smp_size)
+train_cv <- ncpdata.new[index, ]
+test_cv <- ncpdata.new[-index, ]
+tree <- rpart(phishing~., data=train_cv, parms = list(loss = penalty.matrix),method = "class")
+results_prob <- predict(tree, newdata = test_cv[-79], type ='class')
+cm_dt <- confusionMatrix(table(test_cv$phishing, results_prob))
+acc_dt[I] <- cm_dt $overall[[1]]
+fpr_dt[I] <- cm_dt $table[2]/(nrow(ncpdata.new)-smp_size)
+fnr_dt[I] <- cm_dt $table[3]/(nrow(ncpdata.new)-smp_size)
+pbar$step()
+}
+mean(acc_dt)
+var(acc_dt)
+
+
+fpr_dt_uncor <- NULL
+fnr_dt_uncor <- NULL
+pbar <- create_progress_bar('text')
+k <- 10
+pbar$init(k)
+acc_dt_uncor <- NULL
+set.seed(43)
+penalty.matrix <- matrix(c(0,1,10,0), byrow=TRUE, nrow=2)
+
+for(i in 1:k){
+smp_size <- floor(0.90 * nrow(ncpdata_uncor))
+index <- sample(seq_len(nrow(ncpdata_uncor)),size=smp_size)
+train_cv_uncor <- ncpdata_uncor[index, ]
+test_cv_uncor <- ncpdata_uncor[-index, ]
+tree_uncor <- rpart(phishing~., data=train_cv, parms = list(loss = penalty.matrix),method = "class")
+results_prob <- predict(tree, newdata = test_cv[-79], type ='class')
+cm_dt_uncor <- confusionMatrix(table(test_cv$phishing, results_prob))
+acc_dt_uncor[i] <- cm_dt_uncor$overall[[1]]
+fpr_dt_uncor[i] <- cm_dt_uncor$table[2]/(nrow(ncpdata_uncor)-smp_size)
+fnr_dt_uncor[i] <- cm_dt_uncor$table[3]/(nrow(ncpdata_uncor)-smp_size)
+pbar$step()
+}
+
+mean(acc_dt_uncor)
+var(acc_dt_uncor)
+par(mfcol=c(1,1))
+hist(acc_dt,xlab='Accuracy',ylab='Freq',
+col='cyan',border='blue',density=30)
+par(mfcol=c(1,1))
+hist(acc_dt_uncor,xlab='Accuracy',ylab='Freq',
+col='cyan',border='blue',density=30)
+

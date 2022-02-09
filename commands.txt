@@ -1,0 +1,88 @@
+Steps in the EDA:
+
+loadData <- '/Users/avinashauthipudi/Downloads/Machine Learning/phishing_data.csv'
+data <- read.csv(loadData, header = T, stringsAsFactors = F)
+dim(data)
+str(data)
+names(data)
+summary(data)
+
+library(psych)
+describe(data)
+
+std_dev_data=round(apply(data[,-112],2,sd),4) mean_data=round(apply(data[,-112],2,mean),4)plot(std_dev_data)plot(mean_data)
+
+tab=table(data$phishing)
+print(ifelse(length(TBL)==2, "Binary Classification", "MultiClass Classification"))
+
+sum(is.na(data))
+
+par(mfrow=c(1,1))
+for(i in 1:4) {hist(data[,i],main=paste("Histogram of feature no.", i))}
+for(i in 5:8) {hist(data[,i],main=paste("Histogram of feature no.", i))}
+
+outliers_row=c()
+for(i in 1:78) {
+data_mean=mean(data[,i])
+data_sd=sd(data[,i])
+low_cutoff=data_mean-3*data_sd
+upper_cutoff=data_mean+3*data_sd
+outliers_idx=which(data[,i]<low_cutoff | data[,i]>upper_cutoff)
+outliers_row=c(outliers_row,outliers_idx) }
+outliers_row=unique(outliers_row)
+print(paste("Number of Outliers =",length(outliers_row)))
+
+set.seed(123)
+heatdata <- matrix(rnorm(100, 0, 10), nrow = 10, ncol = 10)
+colnames(data) <- paste0("col", 1:10)
+rownames(data) <- paste0("row", 1:10)
+heatmap(heatdata)
+
+const_pred=unlist(lapply(1:111,FUN=function(x) {
+TBL=table(data[[x]])
+ifelse(length(names(TBL))<2,-1*x,x)}))
+
+print(ifelse(any(const_pred<0),"Constant Predictors Exist","No Constant Predictors"))
+ncpdata=data[,const_pred>0]
+
+dim(ncpdata)
+head(ncpdata)
+
+library(car)
+scatterplotMatrix(data[1:6])
+
+const_pred=unlist(lapply(1:98,FUN=function(x) {
+TBL=table(ncpdata[[x]])
+ifelse(length(names(TBL))<2,-1*x,x)}))
+print(ifelse(any(const_pred<0),"Constant Predictors Exist","No Constant Predictors"))
+
+cordata=cor(ncpdata[,1:98])
+print(ifelse(any(abs(cordata[cordata!=1])>0.5),"Correlated Predictors Exist","No Correlated Predictors"))
+
+tmp <- cor(ncpdata)
+tmp[upper.tri(tmp)] <- 0
+diag(tmp) <- 0
+ncpdata.new <- ncpdata[, !apply(tmp, 2, function(x) any(abs(x) > 0.99, na.rm = TRUE))]
+dim(ncpdata.new)
+
+sapply(ncpdata.new[1:78], mean)
+sapply(ncpdata.new[1:78], sd)
+
+set.seed(43)
+tridx<-sample(1:nrow(ncpdata.new),0.7*nrow(ncpdata.new),replace=F)
+traindata<-ncpdata.new[tridx,]
+testdata<-ncpdata.new[-tridx,]
+table(traindata$phishing)
+
+detailswhole = glm(phishing~.,data=traindata,family="binomial")
+summary(detailswhole)
+vif(detailswhole)
+
+require(rpart)
+library(rpart)
+tree.data2 <- rpart(phishing~., data=ncpdata.new)
+tree.data2$variable.importance
+
+ncpdata.new$phishing=as.factor(ncpdata.new$phishing)rfmodel = randomForest(phishing~., ncpdata.new)rfmodel_features = varImp(rfmodel)rfmodel_features = rfmodel_features[order(rfmodel_features, decreasing = TRUE),,drop = FALSE]top15features = row.names(rfmodel_features[1:15,,drop = FALSE])
+
+

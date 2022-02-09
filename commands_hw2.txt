@@ -1,0 +1,266 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2636
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww28600\viewh17440\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs34 \cf0 Review of Datasets:\
+\
+dim(ncpdata.new)\
+require(car)\
+model <- glm(phishing~., data = ncpdata.new, family = "binomial")\
+vif(model)\
+\
+cordata=cor(ncpdata.new[,1:78])\
+print(ifelse(any(abs(cordata[cordata!=1])>0.5),"Correlated Predictors Exist","No Correlated Predictors"))\
+cor_index=which(abs(cordata)>0.5 & abs(cordata)!=1, arr.ind = T)\
+cor_index=cor_index[!duplicated(cbind(pmax(cor_index[,1], cor_index[,2]), pmin(cor_index[,1], cor_index[,2]))),]\
+tbl_cor_index=table(cor_index[,1])\
+cor_attributes=as.numeric(names(tbl_cor_index))\
+ncpdata_uncor=ncpdata.new[,-cor_attributes]\
+dim(ncpdata_uncor)\
+\
+cordata=cor(ncpdata_uncor[,1:36])\
+print(ifelse(any(abs(cordata[cordata!=1])>0.5),"Correlated Predictors Exist","No Correlated Predictors"))\
+dim(ncpdata_uncor)\
+\
+model <- glm(phishing~., data = ncpdata_uncor, family = "binomial")\
+vif(model)\
+require(rpart)\
+tree.data <- rpart(phishing~., data=ncpdata_uncor)\
+tree.data$variable.importance\
+\
+ncpdata_uncor$phishing <- as.factor(ncpdata_uncor$phishing)\
+require(randomForest)\
+require(caret)\
+rfmodel <- randomForest(phishing~., ncpdata_uncor)\
+rfmodel_features = varImp(rfmodel)\
+rfmodel_features = rfmodel_features[order(rfmodel_features, decreasing = TRUE),,drop = FALSE]\
+\
+dim(ncpdata.new)\
+dim(ncpdata_uncor)\
+\
+\
+Logistic Regression:\
+\
+set.seed(43)\
+tridx1 <- sample(1:nrow(ncpdata.new), 0.7*nrow(ncpdata.new), replace = F)\
+traindata <- ncpdata.new[tridx1,]\
+testdata <- ncpdata.new[-tridx1,]\
+\
+set.seed(43)\
+tridx2 <- sample(1:nrow(ncpdata_uncor), 0.7*nrow(ncpdata_uncor), replace = F)\
+traindata_uncor <- ncpdata_uncor[tridx2,]\
+testdata_uncor <- ncpdata_uncor[-tridx2,]\
+\
+table(traindata$phishing)\
+table(testdata$phishing)\
+table(traindata_uncor$phishing)\
+table(testdata_uncor$phishing)\
+\
+\
+details <- glm(phishing~.,data=traindata,family="binomial")\
+summary(details)\
+sglmlog.pred <- predict(details,traindata,family="binomial")\
+sglmlog.class<-ifelse(sglmlog.pred<0.5,0,1)\
+scfmlog<-table(traindata[,79], sglmlog.class)\
+cmlog <- confusionMatrix(scfmlog)\
+cmlog\
+\
+sglmlogtest.pred <- predict(details,testdata,family="binomial")\
+sglmlogtest.class<-ifelse(sglmlogtest.pred<0.5,0,1)\
+scfmlogtest<-table(testdata[,79], sglmlogtest.class)\
+cmlogtest <- confusionMatrix(scfmlogtest)\
+cmlogtest\
+\
+\
+details_uncor <- glm(phishing~.,data=traindata_uncor,family="binomial")\
+summary(details_uncor)\
+sglmlog_uncor.pred <- predict(details_uncor,traindata_uncor,family="binomial")\
+sglmlog_uncor.class<-ifelse(sglmlog_uncor.pred<0.5,0,1)\
+scfmlog_uncor<-table(traindata_uncor[,37], sglmlog_uncor.class)\
+cmlog_uncor <- confusionMatrix(scfmlog_uncor)\
+cmlog_uncor\
+\
+sglmlogtest_uncor.pred <- predict(details_uncor,testdata_uncor,family="binomial")\
+sglmlogtest_uncor.class<-ifelse(sglmlogtest_uncor.pred<0.5,0,1)\
+scfmlogtest_uncor<-table(testdata_uncor[,37], sglmlogtest_uncor.class)\
+cmlogtest_uncor <- confusionMatrix(scfmlogtest_uncor)\
+cmlogtest_uncor\
+\
+pred_train <- predict(details, traindata, type=\'93response\'94)\
+roc_train <- roc(traindata$phishing~pred_train, plot = TRUE, print.auc = TRUE)\
+\
+pred_test <- predict(details, testdata, type=\'93response\'94)\
+roc_test <- roc(testdata$phishing~pred_test, plot = TRUE, print.auc = TRUE)\
+\
+\
+KNN Classifier:\
+\
+traindata_knn=traindata[, -which(names(traindata)=="phishing")]\
+testdata_knn=testdata[, -which(names(testdata)=="phishing")]\
+trainclass_knn=factor(traindata[, which(names(traindata)=="phishing")])\
+testclass_knn=factor(testdata[, which(names(testdata)=="phishing")])\
+knn_pred_test=knn(traindata_knn,testdata_knn,trainclass_knn, k = 243, prob=TRUE)\
+require(caret)\
+knn_cfm_tst=confusionMatrix(table(testclass_knn,knn_pred_test))\
+knn_cfm_tst\
+\
+\
+traindata_knn_uncor=traindata_uncor[, -which(names(traindata_uncor)=="phishing")]\
+testdata_knn_uncor=testdata_uncor[, -which(names(testdata_uncor)=="phishing")]\
+trainclass_knn_uncor=factor(traindata_uncor[, which(names(traindata_uncor)=="phishing")])\
+testclass_knn_uncor=factor(testdata_uncor[, which(names(testdata_uncor)=="phishing")])\
+knn_pred_test_uncor=knn(traindata_knn_uncor,testdata_knn_uncor,trainclass_knn_uncor, k = 243, prob=TRUE)\
+knn_cfm_tst_uncor=confusionMatrix(table(testclass_knn_uncor,knn_pred_test_uncor))\
+knn_cfm_tst_uncor\
+\
+pred_test_knn <- predict(knn_pred_test, testdata, type=\'93response\'94)\
+roc_knn <- roc(testdata$phishing ~ pred_test_knn, plot = TRUE, print.auc = TRUE)\
+\
+knn_AUC_tst = roc(testclass_knn, as.ordered(knn_pred_test))\
+plot.roc(knn_AUC_tst, plot = TRUE, print.auc = TRUE)\
+\
+knn_AUC_tst_uncor = roc(testclass_knn_uncor, as.ordered(knn_pred_test_uncor))\
+plot.roc(knn_AUC_tst_uncor, plot = TRUE, print.auc = TRUE)\
+\
+\
+Decision Tree Classifier:\
+\
+require(rpart)\
+require(rpart.plot)\
+penalty.matrix <- matrix(c(0,1,10,0), byrow=TRUE, nrow=2)\
+tree <- rpart(phishing~., data=traindata, parms = list(loss = penalty.matrix),method = "class")\
+rpart.plot(tree, nn=TRUE)\
+pred <- predict(tree, newdata = traindata[-79], type ='class')\
+t <- table(traindata$phishing, pred)\
+confusionMatrix(t)\
+\
+pred_test <- predict(tree, newdata = testdata[-79], type ='class')\
+t_test <- table(testdata$phishing, pred_test)\
+confusionMatrix(t_test)\
+\
+tree_uncor <- rpart(phishing~., data=traindata_uncor, parms = list(loss = penalty.matrix),method = "class")\
+rpart.plot(tree_uncor, nn=TRUE)\
+pred_uncor <- predict(tree_uncor, newdata = traindata_uncor[-37], type ='class')\
+t_uncor <- table(traindata_uncor$phishing, pred_uncor)\
+confusionMatrix(t_uncor)\
+\
+pred_uncor_test <- predict(tree_uncor, newdata = testdata_uncor[-37], type ='class')\
+t_uncor_test <- table(testdata_uncor$phishing, pred_uncor_test)\
+confusionMatrix(t_uncor_test)\
+\
+dt_AUC_pred = roc(traindata[, 79], as.ordered(pred))\
+plot.roc(dt_AUC_pred, plot = TRUE, print.auc = TRUE)\
+\
+dt_AUC_pred_test = roc(testdata[, 79], as.ordered(pred_test))\
+plot.roc(dt_AUC_pred_test, plot = TRUE, print.auc = TRUE)\
+\
+dt_AUC_pred_uncor = roc(traindata_uncor[, 37], as.ordered(pred_uncor))\
+plot.roc(dt_AUC_pred_uncor, plot = TRUE, print.auc = TRUE)\
+\
+dt_AUC_pred_uncor_test = roc(testdata_uncor[, 37], as.ordered(pred_uncor_test))\
+plot.roc(dt_AUC_pred_uncor_test, plot = TRUE, print.auc = TRUE)\
+\
+\
+SVM Classifier:\
+\
+traindata_svm = traindata\
+testdata_svm = testdata\
+traindata_svm$phishing=as.factor(traindata_svm$phishing)\
+testdata_svm$phishing=as.factor(testdata_svm$phishing)\
+svm_model=svm(phishing~.,data=traindata_svm, probability=TRUE)\
+svm_pred_train = predict(svm_model,traindata[, -79], type="class")\
+\
+cfm_train_svm=confusionMatrix(table(traindata[,79], svm_pred_train))\
+cfm_train_svm\
+\
+svm_pred_test = predict(svm_model,testdata[, -79], type="class")\
+cfm_test_svm=confusionMatrix(table(testdata[,79], svm_pred_test))\
+cfm_test_svm\
+\
+traindata_svm_uncor = traindata_uncor\
+testdata_svm_uncor = testdata_uncor\
+traindata_svm_uncor$phishing=as.factor(traindata_svm_uncor$phishing)\
+testdata_svm_uncor$phishing=as.factor(testdata_svm_uncor$phishing)\
+svm_model_uncor=svm(phishing~.,data=traindata_svm_uncor, probability=TRUE)\
+svm_pred_train_uncor = predict(svm_model_uncor,traindata_uncor[, -37], type="class")\
+\
+cfm_train_svm_uncor=confusionMatrix(table(traindata_uncor[,37], svm_pred_train_uncor))\
+cfm_train_svm_uncor\
+\
+svm_pred_test_uncor = predict(svm_model_uncor,testdata_uncor[, -79], type="class")\
+cfm_test_svm_uncor=confusionMatrix(table(testdata_uncor[,79], svm_pred_test_uncor))\
+cfm_test_svm_uncor\
+\
+svm_AUC_pred = roc(traindata[, 79], as.ordered(svm_pred_train))\
+plot.roc(svm_AUC_pred, plot = TRUE, print.auc = TRUE)\
+\
+svm_AUC_pred_test = roc(testdata[, 79], as.ordered(svm_pred_test))\
+plot.roc(svm_AUC_pred_test, plot = TRUE, print.auc = TRUE)\
+\
+svm_AUC_pred_uncor = roc(traindata_uncor[, 37], as.ordered(svm_pred_train_uncor))\
+plot.roc(svm_AUC_pred_uncor, plot = TRUE, print.auc = TRUE)\
+\
+svm_AUC_pred_uncor_test = roc(testdata_uncor[, 37], as.ordered(svm_pred_test_uncor))\
+plot.roc(svm_AUC_pred_uncor_test, plot = TRUE, print.auc = TRUE)\
+\
+\
+Naive Bayes Classifier:\
+\
+require(e1071)\
+traindata_nb = traindata\
+testdata_nb = testdata\
+traindata_nb$phishing=as.factor(traindata_nb$phishing)\
+dim(traindata_nb)\
+\
+nb_model<-naiveBayes(phishing~.,data=traindata_nb)\
+nbtr.trpred<-predict(nb_model,traindata_nb[,-c(79)],type='raw')\
+nbtr.trclass<-unlist(apply(round(nbtr.trpred),1,which.max))-1\
+nbtr.trtbl<-table(nbtr.trclass,traindata_nb[[79]])\
+tr.cfm<-caret::confusionMatrix(nbtr.trtbl)\
+tr.cfm\
+\
+\
+nbtr.tspred<-predict(nb_model,testdata_nb[,-c(79)],type='raw')\
+nbtr.tsclass<-unlist(apply(round(nbtr.tspred),1,which.max))-1\
+nbtr.tstbl<-table(nbtr.tsclass,testdata_nb[[79]])\
+tst.cfm<-caret::confusionMatrix(nbtr.tstbl)\
+tst.cfm\
+\
+\
+traindata_nb_uncor = traindata_uncor\
+testdata_nb_uncor = testdata_uncor\
+traindata_nb_uncor$phishing=as.factor(traindata_nb_uncor$phishing)\
+dim(traindata_nb_uncor)\
+nb_model_uncor<-naiveBayes(phishing~.,data=traindata_nb_uncor)\
+nbtr.trpred_uncor<-predict(nb_model_uncor,traindata_nb_uncor[,-c(37)],type='raw')\
+nbtr.trclass_uncor<-unlist(apply(round(nbtr.trpred_uncor),1,which.max))-1\
+nbtr.trtbl_uncor<-table(nbtr.trclass_uncor,traindata_nb_uncor[[37]])\
+tr.cfm_uncor<-caret::confusionMatrix(nbtr.trtbl_uncor)\
+tr.cfm_uncor\
+\
+nbtr.tspred_uncor<-predict(nb_model_uncor,testdata_nb_uncor[,-c(37)],type='raw')\
+nbtr.tsclass_uncor<-unlist(apply(round(nbtr.tspred_uncor),1,which.max))-1\
+nbtr.tstbl_uncor<-table(nbtr.tsclass_uncor,testdata_nb_uncor[[37]])\
+tst.cfm_uncor<-caret::confusionMatrix(nbtr.tstbl_uncor)\
+tst.cfm_uncor\
+\
+roc.nbtr.trpred<-nbtr.trpred[,2]\
+auc_nb_train = roc(response = traindata_nb[,79], predictor = roc.nbtr.trpred)\
+plot.roc(auc_nb_train, plot = TRUE, print.auc = TRUE)\
+\
+roc.nbtr.tspred<-nbtr.tspred[,2]\
+auc_nb_test = roc(response = testdata_nb[,79], predictor = roc.nbtr.tspred)\
+plot.roc(auc_nb_test, plot = TRUE, print.auc = TRUE)\
+\
+roc.nbtr.trpred_uncor<-nbtr.trpred_uncor[,2]\
+auc_nb_train_uncor= roc(response = traindata_nb_uncor[,37], predictor = roc.nbtr.trpred_uncor)\
+plot.roc(auc_nb_train_uncor, plot = TRUE, print.auc = TRUE)\
+\
+roc.nbtr.tspred_uncor<-nbtr.tspred_uncor[,2]\
+auc_nb_test_uncor = roc(response = testdata_nb_uncor[,79], predictor = roc.nbtr.tspred_uncor)\
+plot.roc(auc_nb_test_uncor, plot = TRUE, print.auc = TRUE)\
+\
+}
